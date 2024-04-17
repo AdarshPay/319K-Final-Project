@@ -38,12 +38,11 @@ uint32_t Random(uint32_t n){
 }
 
 int lostGameFlag = 0;
-int askingRiddle = 0;
-int updateDisplayFlag = 0;
-int updateCharacterFlag = 0;
-int updateCharLocation = 1;
+int updateMapFlag = 0;
+int updateBlueFlag = 0;
+int updateRedFlag = 0;
 
-int32_t sliderX = 0;
+//int32_t sliderX = 0;
 int32_t sliderY = 0;
 
 uint32_t switchA = 0;
@@ -51,14 +50,18 @@ uint32_t switchB = 0;
 uint32_t switchC = 0;
 uint32_t switchD = 0;
 
+//direction - 0 is up, 1 is right, 2 is down, 3 is left
 struct sprite {
     int16_t characterX;
     int16_t characterY;
     const uint16_t *img;
+    int16_t trailColor;
+    uint8_t direction;
 };
 typedef struct sprite sprite_t;
 
-sprite_t kolovosSprite = {10, 10, kolovos};
+sprite_t blueSprite = {111, 17, blueChar, 0x6f3f, 2};
+sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2};
 
 //sprite_t
 
@@ -71,44 +74,85 @@ void TIMG12_IRQHandler(void){
         GPIOB->DOUTTGL31_0 = GREEN; // toggle PB27 (minimally intrusive debugging)
     // game engine goes here
         // 1) sample slide pot
-        if(!askingRiddle && updateCharLocation) {
-            uint32_t ADC1input = ADC1in();
-            uint32_t ADC2input = ADC2in();
-            sliderX = Convert1(ADC1input);
-            sliderY = Convert2(ADC2input);
-            if(sliderX != 0 || sliderY != 0) {
-                updateCharacterFlag = 1;
-            }
-            else {
-                updateCharacterFlag = 0;
-            }
-            if(kolovosSprite.characterX + sliderX <= 0 || kolovosSprite.characterX + sliderX >= 120) {
-                kolovosSprite.characterX = kolovosSprite.characterX;
-                kolovosSprite.characterY = kolovosSprite.characterY;
-            }
-            else if(kolovosSprite.characterY + sliderY <= 0 || kolovosSprite.characterY + sliderY >= 160) {
-                kolovosSprite.characterX = kolovosSprite.characterX;
-                kolovosSprite.characterY = kolovosSprite.characterY;
-            }
-            else {
-                kolovosSprite.characterX += sliderX;
-                kolovosSprite.characterY += sliderY;
-                updateCharLocation = 0;
-            }
 
-        }
-        else {
-            updateCharLocation = 1;
-        }
-        // 2) read input switches
+        uint32_t ADC2input = ADC2in();
+        sliderY = Convert2(ADC2input);
+
         switchA = Switch_InA();
         switchB = Switch_InB();
         switchC = Switch_InC();
         switchD = Switch_InD();
-        // 3) move sprites
-        if(!askingRiddle) {
 
+        if(switchA) {
+            redSprite.direction = 0;
         }
+        if(switchB) {
+            redSprite.direction = 1;
+        }
+        if(switchC) {
+            redSprite.direction = 2;
+        }
+        if(switchD) {
+            redSprite.direction = 3;
+        }
+
+        switch(redSprite.direction) {
+            case 0:
+                if(redSprite.characterY - 1 > 0) {
+                    redSprite.characterY -= 1;
+                }
+                break;
+            case 1:
+                if(redSprite.characterX + 1 < 128) {
+                    redSprite.characterX += 1;
+                }
+                break;
+            case 2:
+                if(redSprite.characterY + 1 > 180) {
+                    redSprite.characterY += 1
+                }
+                break;
+            case 3:
+                if(redSprite.characterX - 1 > 0) {
+                    redSprite.characterX -= 1;
+                }
+                break;
+        }
+
+        updateRedFlag = 1;
+
+//        if(!askingRiddle && updateCharLocation) {
+//            uint32_t ADC1input = ADC1in();
+//            uint32_t ADC2input = ADC2in();
+//            sliderX = Convert1(ADC1input);
+//            sliderY = Convert2(ADC2input);
+//            if(sliderX != 0 || sliderY != 0) {
+//                updateCharacterFlag = 1;
+//            }
+//            else {
+//                updateCharacterFlag = 0;
+//            }
+//            if(kolovosSprite.characterX + sliderX <= 0 || kolovosSprite.characterX + sliderX >= 120) {
+//                kolovosSprite.characterX = kolovosSprite.characterX;
+//                kolovosSprite.characterY = kolovosSprite.characterY;
+//            }
+//            else if(kolovosSprite.characterY + sliderY <= 0 || kolovosSprite.characterY + sliderY >= 160) {
+//                kolovosSprite.characterX = kolovosSprite.characterX;
+//                kolovosSprite.characterY = kolovosSprite.characterY;
+//            }
+//            else {
+//                kolovosSprite.characterX += sliderX;
+//                kolovosSprite.characterY += sliderY;
+//                updateCharLocation = 0;
+//            }
+//
+//        }
+//        else {
+//            updateCharLocation = 1;
+//        }
+        // 2) read input switches
+
+        // 3) move sprites
         // 4) start sounds
         // 5) set semaphore
         // NO LCD OUTPUT IN INTERRUPT SERVICE ROUTINES
@@ -220,29 +264,14 @@ int main3(void){ // main3
   Switch_Init(); // initialize switches
   LED_Init(); // initialize LED
   ST7735_FillScreen(ST7735_BLACK);
-  ST7735_DrawBitmap(0, 160, Level1, 120,160); // player ship bottom
-  ST7735_DrawBitmap(65, 20, kolovos, 12, 12);
 
   int refChar = 0;
   while(1){
-    ST7735_DrawBitmap(0, 160, Level1, 120,160); // player ship bottom
     switchA = Switch_InA();
     switchB = Switch_InB();
     switchC = Switch_InC();
     switchD = Switch_InD();
 
-//    if(switchA) {
-//        characterX += 1;
-//    }
-//    if(switchB) {
-//        characterY += 1;
-//    }
-//    if(switchC) {
-//        characterX -= 1;
-//    }
-//    if(switchD) {
-//        characterY -= 1;
-//    }
   }
 }
 // use main4 to test sound outputs
@@ -293,12 +322,18 @@ int main(void){ // final main
   // initialize all data structures
   __enable_irq();
 
+  ST7735_DrawBitmap(0, 180, paperiomap, 128 , 180);
+  ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+
   while(1){
-      if(updateCharacterFlag) {
-          ST7735_DrawBitmap(0, 160, Level1, 120,160); // player ship bottom
-          ST7735_DrawBitmap(kolovosSprite.characterX, kolovosSprite.characterY, kolovosSprite.img, 12, 12); // player ship bottom
-          updateCharacterFlag = 0;
-      }
+        if(updateRedFlag) {
+            ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+        }
+//      if(updateCharacterFlag) {
+//          ST7735_DrawBitmap(0, 160, Level1, 120,160); // player ship bottom
+//          ST7735_DrawBitmap(kolovosSprite.characterX, kolovosSprite.characterY, kolovosSprite.img, 12, 12); // player ship bottom
+//          updateCharacterFlag = 0;
+//      }
     // wait for semaphore
        // clear semaphore
        // update ST7735R

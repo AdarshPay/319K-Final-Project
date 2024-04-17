@@ -46,9 +46,15 @@ uint32_t Convert2(uint32_t input){
     }
 
     //int32_t result = ((32 * 16 * (input - 2048))/2048);
-    result = (result - 1000) >> 9;
+    result = (result - 1000);
 
-    result = 0 - result;
+    if(result < 0) {
+        result = 0;
+    }
+
+    if(result > 0) {
+        result = 1;
+    }
 
   return result; // replace this with a linear function
 }
