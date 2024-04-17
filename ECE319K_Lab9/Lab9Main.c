@@ -37,12 +37,12 @@ uint32_t Random(uint32_t n){
   return (Random32()>>16)%n;
 }
 
-int lostGameFlag = 0;
-int updateMapFlag = 0;
-int updateBlueFlag = 0;
-int updateRedFlag = 0;
+int8_t lostGameFlag = 0;
+int8_t updateMapFlag = 0;
+int8_t updateBlueFlag = 0;
+int8_t updateRedFlag = 0;
+int8_t redCaptured = 0;
 
-//int32_t sliderX = 0;
 int32_t sliderY = 0;
 
 uint32_t switchA = 0;
@@ -57,14 +57,32 @@ struct sprite {
     const uint16_t *img;
     int16_t trailColor;
     uint8_t direction;
+    uint16_t terrTopLeftX;
+    uint16_t terrTopLeftY;
+    uint16_t terrBotLeftX;
+    uint16_t terrBotLeftY;
+    uint16_t terrBotRightX;
+    uint16_t terrBotRightY;
+    uint16_t terrTopRightX;
+    uint16_t terrTopRightY;
 };
 typedef struct sprite sprite_t;
 
-sprite_t blueSprite = {111, 17, blueChar, 0x6f3f, 2};
-sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2};
+sprite_t blueSprite = {111, 17, blueChar, 0x6f3f, 2, 98, 0, 98, 30, 128, 30, 128, 0};
+sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2, 0, 0, 0, 30, 30, 30, 30, 0};
 
-//sprite_t
+int16_t redPossibleCaptureX[640];
+int16_t redPossibleCaptureY[640];
 
+int16_t redCapturedTerritoryX[720];
+int16_t redCapturedTerritoryY[720];
+
+int16_t redCapIndex = 0;
+int redTerritoryIndex = 0;
+
+int8_t redLeftTerritory = 0;
+
+int8_t showRedTrail = 0;
 
 // games  engine runs at 30Hz
 void TIMG12_IRQHandler(void){
@@ -86,70 +104,67 @@ void TIMG12_IRQHandler(void){
         if(switchA) {
             redSprite.direction = 0;
         }
-        if(switchB) {
+        if(switchD) {
             redSprite.direction = 1;
         }
         if(switchC) {
             redSprite.direction = 2;
         }
-        if(switchD) {
+        if(switchB) {
             redSprite.direction = 3;
         }
 
         switch(redSprite.direction) {
             case 0:
-                if(redSprite.characterY - 1 > 0) {
+                if(redSprite.characterY - 1 > 7) {
                     redSprite.characterY -= 1;
+                    updateRedFlag = 1;
                 }
                 break;
             case 1:
-                if(redSprite.characterX + 1 < 128) {
+                if(redSprite.characterX + 1 < 121) {
                     redSprite.characterX += 1;
+                    updateRedFlag = 1;
                 }
                 break;
             case 2:
-                if(redSprite.characterY + 1 > 180) {
-                    redSprite.characterY += 1
+                if(redSprite.characterY + 1 < 160) {
+                    redSprite.characterY += 1;
+                    updateRedFlag = 1;
                 }
                 break;
             case 3:
                 if(redSprite.characterX - 1 > 0) {
                     redSprite.characterX -= 1;
+                    updateRedFlag = 1;
                 }
                 break;
         }
 
-        updateRedFlag = 1;
+        //if(paperiomap[(120 * redSprite.characterY) + redSprite.characterX] == 0x0000) {
+        if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
+            redPossibleCaptureX[redCapIndex] = redSprite.characterX;
+            redPossibleCaptureY[redCapIndex] = redSprite.characterY;
+            redCapIndex++;
+            redLeftTerritory = 1;
+            showRedTrail = 1;
+        }
 
-//        if(!askingRiddle && updateCharLocation) {
-//            uint32_t ADC1input = ADC1in();
-//            uint32_t ADC2input = ADC2in();
-//            sliderX = Convert1(ADC1input);
-//            sliderY = Convert2(ADC2input);
-//            if(sliderX != 0 || sliderY != 0) {
-//                updateCharacterFlag = 1;
-//            }
-//            else {
-//                updateCharacterFlag = 0;
-//            }
-//            if(kolovosSprite.characterX + sliderX <= 0 || kolovosSprite.characterX + sliderX >= 120) {
-//                kolovosSprite.characterX = kolovosSprite.characterX;
-//                kolovosSprite.characterY = kolovosSprite.characterY;
-//            }
-//            else if(kolovosSprite.characterY + sliderY <= 0 || kolovosSprite.characterY + sliderY >= 160) {
-//                kolovosSprite.characterX = kolovosSprite.characterX;
-//                kolovosSprite.characterY = kolovosSprite.characterY;
-//            }
-//            else {
-//                kolovosSprite.characterX += sliderX;
-//                kolovosSprite.characterY += sliderY;
-//                updateCharLocation = 0;
-//            }
-//
-//        }
-//        else {
-//            updateCharLocation = 1;
-//        }
+        short colorSelected = paperiomap[(128 * 160) + 0];
+
+        //if(colorSelected == 0x20FD) {
+        if(redSprite.characterX <= redSprite.terrBotRightX && redSprite.characterX <= redSprite.terrTopRightX && redSprite.characterX >= redSprite.terrBotLeftX){
+            if(redSprite.characterY <= redSprite.terrBotRightY && redSprite.characterY <= redSprite.terrBotLeftY && redSprite.characterY > redSprite.terrTopRightY){
+
+                if(redLeftTerritory) {
+                    redCaptured = 1;
+                    redLeftTerritory = 0;
+                }
+                showRedTrail = 0;
+            }
+        }
+
+
         // 2) read input switches
 
         // 3) move sprites
@@ -183,6 +198,7 @@ const char *Phrases[3][4]={
   {Goodbye_English,Goodbye_Spanish,Goodbye_Portuguese,Goodbye_French},
   {Language_English,Language_Spanish,Language_Portuguese,Language_French}
 };
+
 // use main1 to observe special characters
 int main1(void){ // main1
     char l;
@@ -322,18 +338,42 @@ int main(void){ // final main
   // initialize all data structures
   __enable_irq();
 
-  ST7735_DrawBitmap(0, 180, paperiomap, 128 , 180);
+  ST7735_DrawBitmap(0, 160, paperiomap, 128 , 160);
   ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
 
   while(1){
         if(updateRedFlag) {
             ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+            if(showRedTrail) {
+                switch(redSprite.direction) {
+                    case 0:
+                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY + 1, pinkTrail, 8, 1);
+                        break;
+                    case 1:
+                        ST7735_DrawBitmap(redSprite.characterX - 1, redSprite.characterY, pinkTrail, 1, 8);
+                        break;
+                    case 2:
+                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY - 8, pinkTrail, 8, 1);
+                        break;
+                    case 3:
+                        ST7735_DrawBitmap(redSprite.characterX + 8, redSprite.characterY, pinkTrail, 1, 8);
+                        break;
+                }
+            }
+
+            updateRedFlag = 0;
         }
-//      if(updateCharacterFlag) {
-//          ST7735_DrawBitmap(0, 160, Level1, 120,160); // player ship bottom
-//          ST7735_DrawBitmap(kolovosSprite.characterX, kolovosSprite.characterY, kolovosSprite.img, 12, 12); // player ship bottom
-//          updateCharacterFlag = 0;
-//      }
+        if(redCaptured) {
+            for(int i = 0; i <= redCapIndex; i++) {
+                ST7735_DrawBitmap(redPossibleCaptureX[i], redPossibleCaptureY[i], redFill, 1, 8);
+                ST7735_DrawBitmap(redPossibleCaptureX[i], redPossibleCaptureY[i], redFill, 8, 1);
+//                redCapturedTerritoryX[redTerritoryIndex] = redPossibleCaptureX[i];
+//                redCapturedTerritoryY[redTerritoryIndex] = redPossibleCaptureY[i];
+//                redTerritoryIndex++;
+            }
+            redCaptured = 0;
+            redCapIndex = 0;
+        }
     // wait for semaphore
        // clear semaphore
        // update ST7735R
