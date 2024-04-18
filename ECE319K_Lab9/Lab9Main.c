@@ -19,6 +19,8 @@
 #include "Switch.h"
 #include "Sound.h"
 #include "images/images.h"
+#define MIN(x,y) (x < y ? x : y)
+#define MAX(x,y) (x > y ? x : y)
 // ****note to ECE319K students****
 // the data sheet says the ADC does not work when clock is 80 MHz
 // however, the ADC seems to work on my boards at 80 MHz
@@ -68,23 +70,134 @@ struct sprite {
 };
 typedef struct sprite sprite_t;
 
+struct Point {
+    uint16_t x;
+    uint16_t y;
+};
+typedef struct Point Point_t;
+
 sprite_t blueSprite = {111, 17, blueChar, 0x6f3f, 2, 98, 0, 98, 30, 128, 30, 128, 0};
 sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2, 0, 0, 0, 30, 30, 30, 30, 0};
 
-int16_t redPossibleCaptureX[640];
-int16_t redPossibleCaptureY[640];
+//int16_t redPossibleCaptureX[640];
+//int16_t redPossibleCaptureY[640];
 
-int16_t redCapturedTerritoryX[720];
-int16_t redCapturedTerritoryY[720];
+Point_t redPossibleCapture[640];
 
-int16_t redCapIndex = 0;
+Point_t redCapturedTerritory[720];
+
+Point_t rTL = {0, 0};
+//rTL.x = 0;
+//rTl.y = 0;
+Point_t rBL = {0, 30};
+//rBL.x = 0;
+//rBL.y = 30;
+Point_t rTR = {30, 0};
+//rTR.x = 30;
+//rTR.y = 0;
+Point_t rBR = {30, 30};
+//rBR.x = 30;
+//rBR.y = 30;
+
+//redCapturedTerritory[0].x = 0;
+//redCapturedTerritory[0].y = 0;
+//redCapturedTerritory[1] = rBR;
+//redCapturedTerritory[2] = rTR;
+//redCapturedTerritory[3] = rTL;
+
+int16_t redCapIndex = 4;
+
+int16_t redPossCapIndex = 0;
 int redTerritoryIndex = 0;
 
 int8_t redLeftTerritory = 0;
 
 int8_t showRedTrail = 0;
 
+int crossProduct(Point_t p1, Point_t p2, Point_t p3) {
+    return (p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y);
+}
+
+// Function to compute the orientation of three points (p, q, r)
+int orientation(Point_t p, Point_t q, Point_t r) {
+    int val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
+    if (val == 0) return 0;  // colinear
+    return (val > 0) ? 1 : 2; // clock or counterclock wise
+}
+
+// Function to compute the convex hull of a set of points using Jarvis's algorithm
+void convexHull(Point_t points[], int n) {
+    // If the number of points is less than 3, convex hull is not possible
+    if (n < 3) return;
+
+    // Initialize the result array to store convex hull points
+    //int hullIndex = 0;
+
+    // Find the leftmost point
+    int leftmost = 0;
+    for (int i = 1; i < n; i++) {
+        if (points[i].x < points[leftmost].x) {
+            leftmost = i;
+        }
+    }
+
+    // Start from the leftmost Point_t and keep moving counterclockwise
+    // until we reach the start Point_t again
+    int p = leftmost, q;
+    do {
+        // Add current Point_t to result
+        redCapturedTerritory[redCapIndex] = points[p];
+        redCapIndex++;
+
+        // Find the next Point_t q such that the triplet (p, q, r) is counterclockwise
+        q = (p + 1) % n;
+        for (int r = 0; r < n; r++) {
+            if (orientation(points[p], points[r], points[q]) == 2) {
+                q = r;
+            }
+        }
+
+        // Set q as the next Point_t for the next iteration
+        p = q;
+
+    } while (p != leftmost); // Continue until we reach the start Point_t again
+
+//    numOfVertices = hullIndex;
+//    return numOfVertices;
+}
+
+int InsidePolygon(Point_t polygon[], int N, Point_t p)
+{
+  int counter = 0;
+  int i;
+  double xinters;
+  Point_t p1,p2;
+
+  p1 = polygon[0];
+  for (i=1;i<=N;i++) {
+    p2 = polygon[i % N];
+    if (p.y > MIN(p1.y,p2.y)) {
+      if (p.y <= MAX(p1.y,p2.y)) {
+        if (p.x <= MAX(p1.x,p2.x)) {
+          if (p1.y != p2.y) {
+            xinters = (p.y-p1.y)*(p2.x-p1.x)/(p2.y-p1.y)+p1.x;
+            if (p1.x == p2.x || p.x <= xinters)
+              counter++;
+          }
+        }
+      }
+    }
+    p1 = p2;
+  }
+
+  if (counter % 2 == 0)
+    return 0;
+  else
+    return 1;
+}
+
 // games  engine runs at 30Hz
+
 void TIMG12_IRQHandler(void){
     uint32_t pos,msg;
     if((TIMG12->CPU_INT.IIDX) == 1){ // this will acknowledge
@@ -143,34 +256,49 @@ void TIMG12_IRQHandler(void){
 
         //if(paperiomap[(120 * redSprite.characterY) + redSprite.characterX] == 0x0000) {
         if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
-            redPossibleCaptureX[redCapIndex] = redSprite.characterX;
-            redPossibleCaptureY[redCapIndex] = redSprite.characterY;
-            redCapIndex++;
+            redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
+            redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
+            redPossCapIndex++;
             redLeftTerritory = 1;
             showRedTrail = 1;
         }
 
-        short colorSelected = paperiomap[(128 * 160) + 0];
+        int8_t inTerr = 0;
 
-        //if(colorSelected == 0x20FD) {
-        if(redSprite.characterX <= redSprite.terrBotRightX && redSprite.characterX <= redSprite.terrTopRightX && redSprite.characterX >= redSprite.terrBotLeftX){
-            if(redSprite.characterY <= redSprite.terrBotRightY && redSprite.characterY <= redSprite.terrBotLeftY && redSprite.characterY > redSprite.terrTopRightY){
+//        for(int i = 0; i < redCapIndex - 2; i++) {
+//            if(redSprite.characterX > redCapturedTerritory[i].x && redSprite.characterY > redCapturedTerritory[i + 1].y && redSprite.characterY < redCapturedTerritory[i + 2].y) {
+//                inTerr = 1;
+//            }
+//            if(redSprite.characterX < redCapturedTerritory[redCapIndex - i].x && redSprite.characterY > redCapturedTerritory[redCapIndex - i - 1].y && redSprite.characterY < redCapturedTerritory[redCapIndex - i - 2].y) {
+//                inTerr = 1;
+//            }
 
+//            if(redSprite.characterX <= redSprite.terrBotRightX && redSprite.characterX <= redSprite.terrTopRightX && redSprite.characterX >= redSprite.terrBotLeftX){
+//                if(redSprite.characterY <= redSprite.terrBotRightY && redSprite.characterY <= redSprite.terrBotLeftY && redSprite.characterY > redSprite.terrTopRightY){
+//                    inTerr = 1;
+//                }
+//            }
+
+            Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
+            inTerr = InsidePolygon(redCapturedTerritory, redCapIndex, redCharLoc);
+
+//        }
+
+//        if(redSprite.characterX <= redSprite.terrBotRightX && redSprite.characterX <= redSprite.terrTopRightX && redSprite.characterX >= redSprite.terrBotLeftX){
+//            if(redSprite.characterY <= redSprite.terrBotRightY && redSprite.characterY <= redSprite.terrBotLeftY && redSprite.characterY > redSprite.terrTopRightY){
+          if(inTerr == 1){
                 if(redLeftTerritory) {
                     redCaptured = 1;
                     redLeftTerritory = 0;
                 }
                 showRedTrail = 0;
-            }
+//          }
         }
 
-
-        // 2) read input switches
-
-        // 3) move sprites
         // 4) start sounds
-        // 5) set semaphore
+
         // NO LCD OUTPUT IN INTERRUPT SERVICE ROUTINES
+
         GPIOB->DOUTTGL31_0 = GREEN; // toggle PB27 (minimally intrusive debugging)
     }
 }
@@ -340,6 +468,16 @@ int main(void){ // final main
 
   ST7735_DrawBitmap(0, 160, paperiomap, 128 , 160);
   ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+  ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
+
+  redCapturedTerritory[0].x = 0;
+  redCapturedTerritory[0].y = 30;
+  redCapturedTerritory[1].x = 30;
+  redCapturedTerritory[1].y = 30;
+  redCapturedTerritory[2].x = 30;
+  redCapturedTerritory[2].y = 0;
+  redCapturedTerritory[3].x = 0;
+  redCapturedTerritory[3].y = 0;
 
   while(1){
         if(updateRedFlag) {
@@ -364,15 +502,17 @@ int main(void){ // final main
             updateRedFlag = 0;
         }
         if(redCaptured) {
-            for(int i = 0; i <= redCapIndex; i++) {
-                ST7735_DrawBitmap(redPossibleCaptureX[i], redPossibleCaptureY[i], redFill, 1, 8);
-                ST7735_DrawBitmap(redPossibleCaptureX[i], redPossibleCaptureY[i], redFill, 8, 1);
+            for(int i = 0; i <= redPossCapIndex; i++) {
+                ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 1, 8);
+                ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 8, 1);
+
 //                redCapturedTerritoryX[redTerritoryIndex] = redPossibleCaptureX[i];
 //                redCapturedTerritoryY[redTerritoryIndex] = redPossibleCaptureY[i];
 //                redTerritoryIndex++;
             }
+            convexHull(redPossibleCapture, redPossCapIndex);
             redCaptured = 0;
-            redCapIndex = 0;
+            redPossCapIndex = 0;
         }
     // wait for semaphore
        // clear semaphore
