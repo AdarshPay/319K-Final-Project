@@ -19,6 +19,7 @@
 #include "Switch.h"
 #include "Sound.h"
 #include "images/images.h"
+#include <math.h>
 #define MIN(x,y) (x < y ? x : y)
 #define MAX(x,y) (x > y ? x : y)
 // ****note to ECE319K students****
@@ -84,7 +85,7 @@ sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2, 0, 0, 0, 30, 30, 30, 30, 0};
 
 Point_t redPossibleCapture[640];
 
-Point_t redCapturedTerritory[720];
+Point_t redCapturedTerritory[960];
 
 int16_t redCapIndex = 4;
 int16_t prevRedCapIndex = 4;
@@ -146,44 +147,33 @@ void convexHull(Point_t points[], int n, int8_t whichArray) {
     } while (p != leftmost);
 }
 
-int InsidePolygon(Point_t polygon[], int N, Point_t p)
-{
-  int counter = 0;
-  int i;
-  double xinters;
-  Point_t p1,p2;
-
-  p1 = polygon[0];
-  for (i=1;i<=N;i++) {
-    p2 = polygon[i % N];
-    if (p.y > MIN(p1.y,p2.y)) {
-      if (p.y <= MAX(p1.y,p2.y)) {
-        if (p.x <= MAX(p1.x,p2.x)) {
-          if (p1.y != p2.y) {
-            xinters = (p.y-p1.y)*(p2.x-p1.x)/(p2.y-p1.y)+p1.x;
-            if (p1.x == p2.x || p.x <= xinters)
-              counter++;
-          }
+bool isInsideConvexHull(Point_t convexHull[], int hullSize, Point_t p) {
+    // Check if the point is inside the convex hull using winding number algorithm
+    int windingNumber = 0;
+    for (int i = 0; i < hullSize; i++) {
+        int next = (i + 1) % hullSize;
+        if (convexHull[i].y <= p.y) {
+            if (convexHull[next].y > p.y && crossProduct(convexHull[i], convexHull[next], p) > 0) {
+                windingNumber++;
+            }
+        } else {
+            if (convexHull[next].y <= p.y && crossProduct(convexHull[i], convexHull[next], p) < 0) {
+                windingNumber--;
+            }
         }
-      }
     }
-    p1 = p2;
-  }
-
-  if (counter % 2 == 0)
-    return 0;
-  else
-    return 1;
+    return windingNumber != 0;
 }
 
 // Function to fill a polygon given its CapturedTerritory
 void fillPolygon(int n, int8_t color) {
     switch(color) {
         case 0:
-            for(int i = redCapturedTerritory[prevRedCapIndex].x; i < 128; i++) {
-                for(int j = redCapturedTerritory[prevRedCapIndex].y; j < 160; j++) {
+            for(int i = redCapturedTerritory[0].x; i < 128; i++) {
+                for(int j = redCapturedTerritory[0].y; j < 160; j++) {
                     Point_t pixelLoc = {i, j};
-                    if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
+//                    if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
+                    if(isInsideConvexHull(redCapturedTerritory, redCapIndex, pixelLoc)) {
                         ST7735_DrawPixel(i, j, 0x20FD);
                     }
                 }
@@ -203,74 +193,76 @@ void TIMG12_IRQHandler(void){
         uint32_t ADC2input = ADC2in();
         sliderY = Convert2(ADC2input);
 
-        switchA = Switch_InA();
-        switchB = Switch_InB();
-        switchC = Switch_InC();
-        switchD = Switch_InD();
+        if(!redCaptured){
+            switchA = Switch_InA();
+            switchB = Switch_InB();
+            switchC = Switch_InC();
+            switchD = Switch_InD();
 
-        if(switchA) {
-            redSprite.direction = 0;
-        }
-        if(switchD) {
-            redSprite.direction = 1;
-        }
-        if(switchC) {
-            redSprite.direction = 2;
-        }
-        if(switchB) {
-            redSprite.direction = 3;
-        }
-
-        switch(redSprite.direction) {
-            case 0:
-                if(redSprite.characterY - 1 > 7) {
-                    redSprite.characterY -= 1;
-                    updateRedFlag = 1;
-                }
-                break;
-            case 1:
-                if(redSprite.characterX + 1 < 121) {
-                    redSprite.characterX += 1;
-                    updateRedFlag = 1;
-                }
-                break;
-            case 2:
-                if(redSprite.characterY + 1 < 160) {
-                    redSprite.characterY += 1;
-                    updateRedFlag = 1;
-                }
-                break;
-            case 3:
-                if(redSprite.characterX - 1 > 0) {
-                    redSprite.characterX -= 1;
-                    updateRedFlag = 1;
-                }
-                break;
-        }
-
-        int8_t inRedTerr = 0;
-        Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
-        inRedTerr = InsidePolygon(redCapturedTerritory, redCapIndex, redCharLoc);
-
-        //if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
-        if(!inRedTerr){
-            redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
-            redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
-            Point_t redCharLoc = {redSprite.characterX - 8, redSprite.characterY - 8};
-            redCapturedTerritory[redCapIndex] = redCharLoc;
-            redPossCapIndex++;
-            redLeftTerritory = 1;
-            showRedTrail = 1;
-
-        }
-        if(inRedTerr == 1){
-            if(redLeftTerritory) {
-                redCaptured = 1;
-                redLeftTerritory = 0;
+            if(switchA) {
+                redSprite.direction = 0;
             }
-            showRedTrail = 0;
-        }
+            if(switchD) {
+                redSprite.direction = 1;
+            }
+            if(switchC) {
+                redSprite.direction = 2;
+            }
+            if(switchB) {
+                redSprite.direction = 3;
+            }
 
+            switch(redSprite.direction) {
+                case 0:
+                    if(redSprite.characterY - 1 > 7) {
+                        redSprite.characterY -= 1;
+                        updateRedFlag = 1;
+                    }
+                    break;
+                case 1:
+                    if(redSprite.characterX + 1 < 121) {
+                        redSprite.characterX += 1;
+                        updateRedFlag = 1;
+                    }
+                    break;
+                case 2:
+                    if(redSprite.characterY + 1 < 160) {
+                        redSprite.characterY += 1;
+                        updateRedFlag = 1;
+                    }
+                    break;
+                case 3:
+                    if(redSprite.characterX - 1 > 0) {
+                        redSprite.characterX -= 1;
+                        updateRedFlag = 1;
+                    }
+                    break;
+            }
+
+            int8_t inRedTerr = 0;
+            Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
+    //        inRedTerr = InsidePolygon(redCapturedTerritory, redCapIndex, redCharLoc);
+            inRedTerr = isInsideConvexHull(redCapturedTerritory, redCapIndex, redCharLoc);
+
+            //if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
+            if(!inRedTerr){
+                redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
+                redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
+                Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
+                redCapturedTerritory[redCapIndex] = redCharLoc;
+                redPossCapIndex++;
+                redLeftTerritory = 1;
+                showRedTrail = 1;
+
+            }
+            if(inRedTerr == 1){
+                if(redLeftTerritory) {
+                    redCaptured = 1;
+                    redLeftTerritory = 0;
+                }
+                showRedTrail = 0;
+            }
+        }
         // 4) start sounds
 
         // NO LCD OUTPUT IN INTERRUPT SERVICE ROUTINES
