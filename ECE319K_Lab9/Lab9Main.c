@@ -87,6 +87,7 @@ Point_t redPossibleCapture[640];
 Point_t redCapturedTerritory[720];
 
 int16_t redCapIndex = 4;
+int16_t prevRedCapIndex = 4;
 
 int16_t redPossCapIndex = 0;
 int redTerritoryIndex = 0;
@@ -99,22 +100,6 @@ int crossProduct(Point_t p1, Point_t p2, Point_t p3) {
     return (p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y);
 }
 
-// Function to fill a polygon given its CapturedTerritory
-void fillPolygon(int n, uint16_t color) {
-    for(int i = 0; i < 128; i++) {
-        for(int j = 0; j < 160; j++) {
-            Point_t pixelLoc = {i, j};
-            if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
-                for(int k = 0; k < redPossCapIndex; k++) {
-                    if(redPossibleCapture[k].x == i && redPossibleCapture[k].y < j) {
-                        ST7735_DrawPixel(i, j, color);
-                    }
-                }
-            }
-        }
-    }
-}
-
 // Function to compute the orientation of three points (p, q, r)
 int orientation(Point_t p, Point_t q, Point_t r) {
     int val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y);
@@ -122,7 +107,8 @@ int orientation(Point_t p, Point_t q, Point_t r) {
     return (val > 0) ? 1 : 2; // clock or counterclock wise
 }
 
-void convexHull(Point_t points[], int n) {
+// whichArray tells which array to add to, 0 - redCapturedTerritory, 1 - blueCaptured Territory
+void convexHull(Point_t points[], int n, int8_t whichArray) {
     // If the number of points is less than 3, convex hull is not possible
     if (n < 3) return;
 
@@ -135,8 +121,16 @@ void convexHull(Point_t points[], int n) {
 
     int p = leftmost, q;
     do {
-        redCapturedTerritory[redCapIndex] = points[p];
-        redCapIndex++;
+        switch(whichArray) {
+            case 0:
+                redCapturedTerritory[redCapIndex] = points[p];
+                redCapIndex++;
+                break;
+//            case 1:
+//                redCapturedTerritory[redCapIndex] = points[p];
+//                redCapIndex++;
+        }
+
 
         // Find the next Point_t q such that the triplet (p, q, r) is counterclockwise
         q = (p + 1) % n;
@@ -182,8 +176,22 @@ int InsidePolygon(Point_t polygon[], int N, Point_t p)
     return 1;
 }
 
-// games  engine runs at 30Hz
+// Function to fill a polygon given its CapturedTerritory
+void fillPolygon(int n, int8_t color) {
+    switch(color) {
+        case 0:
+            for(int i = redCapturedTerritory[prevRedCapIndex].x; i < 128; i++) {
+                for(int j = redCapturedTerritory[prevRedCapIndex].y; j < 160; j++) {
+                    Point_t pixelLoc = {i, j};
+                    if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
+                        ST7735_DrawPixel(i, j, 0x20FD);
+                    }
+                }
+            }
+    }
+}
 
+// games  engine runs at 30Hz
 void TIMG12_IRQHandler(void){
     uint32_t pos,msg;
     if((TIMG12->CPU_INT.IIDX) == 1){ // this will acknowledge
@@ -244,11 +252,11 @@ void TIMG12_IRQHandler(void){
         Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
         inRedTerr = InsidePolygon(redCapturedTerritory, redCapIndex, redCharLoc);
 
-//        if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
+        //if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
         if(!inRedTerr){
             redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
             redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
-            Point_t redCharLoc = {redSprite.characterX + 8, redSprite.characterY + 8};
+            Point_t redCharLoc = {redSprite.characterX - 8, redSprite.characterY - 8};
             redCapturedTerritory[redCapIndex] = redCharLoc;
             redPossCapIndex++;
             redLeftTerritory = 1;
@@ -260,7 +268,7 @@ void TIMG12_IRQHandler(void){
                 redCaptured = 1;
                 redLeftTerritory = 0;
             }
-        showRedTrail = 0;
+            showRedTrail = 0;
         }
 
         // 4) start sounds
@@ -439,13 +447,13 @@ int main(void){ // final main
   ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
 
   redCapturedTerritory[0].x = 0;
-  redCapturedTerritory[0].y = 30;
+  redCapturedTerritory[0].y = 0;
   redCapturedTerritory[1].x = 30;
-  redCapturedTerritory[1].y = 30;
+  redCapturedTerritory[1].y = 0;
   redCapturedTerritory[2].x = 30;
-  redCapturedTerritory[2].y = 0;
+  redCapturedTerritory[2].y = 30;
   redCapturedTerritory[3].x = 0;
-  redCapturedTerritory[3].y = 0;
+  redCapturedTerritory[3].y = 30;
 
   while(1){
         if(updateRedFlag) {
@@ -466,20 +474,15 @@ int main(void){ // final main
                         break;
                 }
             }
-
-            updateRedFlag = 0;
         }
         if(redCaptured) {
             for(int i = 0; i <= redPossCapIndex; i++) {
                 ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 1, 8);
                 ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 8, 1);
-
-//                redCapturedTerritoryX[redTerritoryIndex] = redPossibleCaptureX[i];
-//                redCapturedTerritoryY[redTerritoryIndex] = redPossibleCaptureY[i];
-//                redTerritoryIndex++;
             }
-            convexHull(redPossibleCapture, redPossCapIndex);
-            fillPolygon(redCapIndex, 0x20FD);
+            prevRedCapIndex = redCapIndex;
+            convexHull(redPossibleCapture, redPossCapIndex, 0);
+            fillPolygon(redCapIndex, 0);
             redCaptured = 0;
             redPossCapIndex = 0;
         }
