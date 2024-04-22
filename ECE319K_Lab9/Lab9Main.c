@@ -45,6 +45,11 @@ int8_t updateMapFlag = 0;
 int8_t updateBlueFlag = 0;
 int8_t updateRedFlag = 0;
 int8_t redCaptured = 0;
+int8_t onIntroScreen = 1;
+int8_t isEnglish = 1;
+
+uint32_t redPixelCount = 0;
+uint32_t bluePixelCount = 0;
 
 int32_t sliderY = 0;
 
@@ -52,6 +57,7 @@ uint32_t switchA = 0;
 uint32_t switchB = 0;
 uint32_t switchC = 0;
 uint32_t switchD = 0;
+
 
 //direction - 0 is up, 1 is right, 2 is down, 3 is left
 struct sprite {
@@ -174,6 +180,8 @@ void fillPolygon(int n, int8_t color) {
                     Point_t pixelLoc = {i, j};
 //                    if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
                     if(isInsideConvexHull(redCapturedTerritory, redCapIndex, pixelLoc)) {
+                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+                        redPixelCount++;
                         ST7735_DrawPixel(i, j, 0x20FD);
                     }
                 }
@@ -190,77 +198,82 @@ void TIMG12_IRQHandler(void){
     // game engine goes here
         // 1) sample slide pot
 
-        uint32_t ADC2input = ADC2in();
-        sliderY = Convert2(ADC2input);
+        if(!onIntroScreen){
+            if(!redCaptured){
+                switchA = Switch_InA();
+                switchB = Switch_InB();
+                switchC = Switch_InC();
+                switchD = Switch_InD();
 
-        if(!redCaptured){
-            switchA = Switch_InA();
-            switchB = Switch_InB();
-            switchC = Switch_InC();
-            switchD = Switch_InD();
-
-            if(switchA) {
-                redSprite.direction = 0;
-            }
-            if(switchD) {
-                redSprite.direction = 1;
-            }
-            if(switchC) {
-                redSprite.direction = 2;
-            }
-            if(switchB) {
-                redSprite.direction = 3;
-            }
-
-            switch(redSprite.direction) {
-                case 0:
-                    if(redSprite.characterY - 1 > 7) {
-                        redSprite.characterY -= 1;
-                        updateRedFlag = 1;
+                if(switchA) {
+                    if(redSprite.direction != 2) {
+                        redSprite.direction = 0;
                     }
-                    break;
-                case 1:
-                    if(redSprite.characterX + 1 < 121) {
-                        redSprite.characterX += 1;
-                        updateRedFlag = 1;
-                    }
-                    break;
-                case 2:
-                    if(redSprite.characterY + 1 < 160) {
-                        redSprite.characterY += 1;
-                        updateRedFlag = 1;
-                    }
-                    break;
-                case 3:
-                    if(redSprite.characterX - 1 > 0) {
-                        redSprite.characterX -= 1;
-                        updateRedFlag = 1;
-                    }
-                    break;
-            }
-
-            int8_t inRedTerr = 0;
-            Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
-    //        inRedTerr = InsidePolygon(redCapturedTerritory, redCapIndex, redCharLoc);
-            inRedTerr = isInsideConvexHull(redCapturedTerritory, redCapIndex, redCharLoc);
-
-            //if(!(redSprite.characterX <= 38 && redSprite.characterY <= 38)) {
-            if(!inRedTerr){
-                redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
-                redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
-                Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
-                redCapturedTerritory[redCapIndex] = redCharLoc;
-                redPossCapIndex++;
-                redLeftTerritory = 1;
-                showRedTrail = 1;
-
-            }
-            if(inRedTerr == 1){
-                if(redLeftTerritory) {
-                    redCaptured = 1;
-                    redLeftTerritory = 0;
                 }
-                showRedTrail = 0;
+                if(switchD) {
+                    if(redSprite.direction != 3) {
+                        redSprite.direction = 1;
+                    }
+                }
+                if(switchC) {
+                    if(redSprite.direction != 0) {
+                        redSprite.direction = 2;
+                    }
+                }
+                if(switchB) {
+                    if(redSprite.direction != 1) {
+                        redSprite.direction = 3;
+                    }
+                }
+
+                switch(redSprite.direction) {
+                    case 0:
+                        if(redSprite.characterY - 1 > 7) {
+                            redSprite.characterY -= 1;
+                            updateRedFlag = 1;
+                        }
+                        break;
+                    case 1:
+                        if(redSprite.characterX + 1 < 121) {
+                            redSprite.characterX += 1;
+                            updateRedFlag = 1;
+                        }
+                        break;
+                    case 2:
+                        if(redSprite.characterY + 1 < 160) {
+                            redSprite.characterY += 1;
+                            updateRedFlag = 1;
+                        }
+                        break;
+                    case 3:
+                        if(redSprite.characterX - 1 > 0) {
+                            redSprite.characterX -= 1;
+                            updateRedFlag = 1;
+                        }
+                        break;
+                }
+
+                int8_t inRedTerr = 0;
+                Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
+                inRedTerr = isInsideConvexHull(redCapturedTerritory, redCapIndex, redCharLoc);
+
+                if(!inRedTerr){
+                    redPossibleCapture[redPossCapIndex].x = redSprite.characterX;
+                    redPossibleCapture[redPossCapIndex].y = redSprite.characterY;
+                    Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
+                    redCapturedTerritory[redCapIndex] = redCharLoc;
+                    redPossCapIndex++;
+                    redLeftTerritory = 1;
+                    showRedTrail = 1;
+
+                }
+                if(inRedTerr == 1){
+                    if(redLeftTerritory) {
+                        redCaptured = 1;
+                        redLeftTerritory = 0;
+                    }
+                    showRedTrail = 0;
+                }
             }
         }
         // 4) start sounds
@@ -447,37 +460,74 @@ int main(void){ // final main
   redCapturedTerritory[3].x = 0;
   redCapturedTerritory[3].y = 30;
 
+  uint32_t ADC2input = ADC2in();
+  sliderY = Convert2(ADC2input);
+  uint32_t switchA = Switch_InA();
+
   while(1){
-        if(updateRedFlag) {
-            ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
-            if(showRedTrail) {
-                switch(redSprite.direction) {
-                    case 0:
-                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY + 1, pinkTrail, 8, 1);
-                        break;
-                    case 1:
-                        ST7735_DrawBitmap(redSprite.characterX - 1, redSprite.characterY, pinkTrail, 1, 8);
-                        break;
-                    case 2:
-                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY - 8, pinkTrail, 8, 1);
-                        break;
-                    case 3:
-                        ST7735_DrawBitmap(redSprite.characterX + 8, redSprite.characterY, pinkTrail, 1, 8);
-                        break;
+          if(onIntroScreen) {
+                ST7735_DrawBitmap(0, 160, Startbackground, 128 , 160);
+                ST7735_DrawBitmap(7, 120, languageSelect, 40 , 40);
+                while(onIntroScreen){
+                    ST7735_DrawBitmap(83, 22, crown, 18 , 8);
+                    for(uint32_t poop = 0;poop < 500000; poop++){
+                    }
+                    ADC2input = ADC2in();
+                    sliderY = Convert2(ADC2input);
+                    if(sliderY == 1){
+                        ST7735_DrawBitmap(0, 160, startButton, 128 , 35);
+                        ST7735_DrawBitmap(0, 114, yellowselector, 5 , 20);
+                        isEnglish = 1;
+                    }
+
+                    if(sliderY == 0){
+                        ST7735_DrawBitmap(0, 114, lightBlue, 5 , 20);
+                        ST7735_DrawBitmap(0, 160, pigLatinStart, 128 , 35);
+                        ST7735_DrawBitmap(0, 124, yellowselector, 5 , 20);
+                        isEnglish = 0;
+                    }
+
+                    switchA = Switch_InA();
+                    if(switchA == 1) {
+                        onIntroScreen = 0;
+                        ST7735_DrawBitmap(0, 160, paperiomap, 128 , 160);
+                        redSprite.direction = 2;
+                        blueSprite.direction = 2;
+                    }
+                }
+              }
+      if(!onIntroScreen) {
+          if(updateRedFlag) {
+                ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+                if(showRedTrail) {
+                    switch(redSprite.direction) {
+                        case 0:
+                            ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY + 1, pinkTrail, 8, 1);
+                            break;
+                        case 1:
+                            ST7735_DrawBitmap(redSprite.characterX - 1, redSprite.characterY, pinkTrail, 1, 8);
+                            break;
+                        case 2:
+                            ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY - 8, pinkTrail, 8, 1);
+                            break;
+                        case 3:
+                            ST7735_DrawBitmap(redSprite.characterX + 8, redSprite.characterY, pinkTrail, 1, 8);
+                            break;
+                    }
                 }
             }
-        }
-        if(redCaptured) {
-            for(int i = 0; i <= redPossCapIndex; i++) {
-                ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 1, 8);
-                ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 8, 1);
+            if(redCaptured) {
+                for(int i = 0; i <= redPossCapIndex; i++) {
+                    ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 1, 8);
+                    ST7735_DrawBitmap(redPossibleCapture[i].x, redPossibleCapture[i].y, redFill, 8, 1);
+                }
+                prevRedCapIndex = redCapIndex;
+                convexHull(redPossibleCapture, redPossCapIndex, 0);
+                fillPolygon(redCapIndex, 0);
+                redCaptured = 0;
+                redPossCapIndex = 0;
             }
-            prevRedCapIndex = redCapIndex;
-            convexHull(redPossibleCapture, redPossCapIndex, 0);
-            fillPolygon(redCapIndex, 0);
-            redCaptured = 0;
-            redPossCapIndex = 0;
-        }
+      }
     // wait for semaphore
        // clear semaphore
        // update ST7735R
