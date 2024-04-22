@@ -40,16 +40,18 @@ uint32_t Random(uint32_t n){
   return (Random32()>>16)%n;
 }
 
-int8_t lostGameFlag = 0;
+int8_t redWin = 0;
+int8_t blueWin = 0;
 int8_t updateMapFlag = 0;
 int8_t updateBlueFlag = 0;
 int8_t updateRedFlag = 0;
 int8_t redCaptured = 0;
+int8_t blueCaptured = 0;
 int8_t onIntroScreen = 1;
 int8_t isEnglish = 1;
 
-uint32_t redPixelCount = 0;
-uint32_t bluePixelCount = 0;
+uint32_t redPixelCount = 4800;
+uint32_t bluePixelCount = 4800;
 
 int32_t sliderY = 0;
 
@@ -58,6 +60,10 @@ uint32_t switchB = 0;
 uint32_t switchC = 0;
 uint32_t switchD = 0;
 
+uint32_t switchE = 0;
+uint32_t switchF = 0;
+uint32_t switchG = 0;
+uint32_t switchH = 0;
 
 //direction - 0 is up, 1 is right, 2 is down, 3 is left
 struct sprite {
@@ -90,18 +96,26 @@ sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2, 0, 0, 0, 30, 30, 30, 30, 0};
 //int16_t redPossibleCaptureY[640];
 
 Point_t redPossibleCapture[640];
+Point_t bluePossibleCapture[640];
 
 Point_t redCapturedTerritory[960];
+Point_t blueCapturedTerritory[960];
 
 int16_t redCapIndex = 4;
+int16_t blueCapIndex = 4;
 int16_t prevRedCapIndex = 4;
+int16_t prevBlueCapIndex = 4;
 
 int16_t redPossCapIndex = 0;
+int16_t bluePossCapIndex = 0;
 int redTerritoryIndex = 0;
+int blueTerritoryIndex = 0;
 
 int8_t redLeftTerritory = 0;
+int8_t blueLeftTerritory = 0;
 
 int8_t showRedTrail = 0;
+int8_t showBlueTrail = 0;
 
 int crossProduct(Point_t p1, Point_t p2, Point_t p3) {
     return (p2.x - p1.x) * (p3.y - p1.y) - (p3.x - p1.x) * (p2.y - p1.y);
@@ -133,9 +147,9 @@ void convexHull(Point_t points[], int n, int8_t whichArray) {
                 redCapturedTerritory[redCapIndex] = points[p];
                 redCapIndex++;
                 break;
-//            case 1:
-//                redCapturedTerritory[redCapIndex] = points[p];
-//                redCapIndex++;
+            case 1:
+                blueCapturedTerritory[blueCapIndex] = points[p];
+                blueCapIndex++;
         }
 
 
@@ -175,17 +189,38 @@ bool isInsideConvexHull(Point_t convexHull[], int hullSize, Point_t p) {
 void fillPolygon(int n, int8_t color) {
     switch(color) {
         case 0:
-            for(int i = redCapturedTerritory[0].x; i < 128; i++) {
-                for(int j = redCapturedTerritory[0].y; j < 160; j++) {
+            for(int i = redCapturedTerritory[0].x; i < 128; i += 8) {
+                for(int j = redCapturedTerritory[0].y; j < 160; j += 8) {
                     Point_t pixelLoc = {i, j};
-//                    if(InsidePolygon(redCapturedTerritory, redCapIndex, pixelLoc)) {
                     if(isInsideConvexHull(redCapturedTerritory, redCapIndex, pixelLoc)) {
                         ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
-                        redPixelCount++;
-                        ST7735_DrawPixel(i, j, 0x20FD);
+                        ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
+                        ST7735_DrawBitmap(i, j, redFill, 1, 8);
+                        ST7735_DrawBitmap(i, j, redFill, 8, 1);
+                        redPixelCount += 64;
+//                        ST7735_DrawPixel(i, j, 0x20FD);
                     }
                 }
             }
+            break;
+        case 1:
+            for(int i = 0; i < 128; i += 8) {
+                for(int j = 0; j < 160; j += 8) {
+                    Point_t pixelLoc = {i, j};
+                    if(isInsideConvexHull(blueCapturedTerritory, blueCapIndex, pixelLoc)) {
+                        ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
+                        ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
+                        ST7735_DrawBitmap(i, j, blueFill, 1, 8);
+                        ST7735_DrawBitmap(i, j, blueFill, 8, 1);
+                        bluePixelCount += 64;
+//                        ST7735_DrawPixel(i, j, 0x20FD);
+                    }
+                }
+            }
+            break;
+//            if(redPixelCount > 35000) {
+//                redWin = 1;
+//            }
     }
 }
 
@@ -198,7 +233,7 @@ void TIMG12_IRQHandler(void){
     // game engine goes here
         // 1) sample slide pot
 
-        if(!onIntroScreen){
+        if(!onIntroScreen && !redWin && !blueWin){
             if(!redCaptured){
                 switchA = Switch_InA();
                 switchB = Switch_InB();
@@ -275,6 +310,84 @@ void TIMG12_IRQHandler(void){
                     showRedTrail = 0;
                 }
             }
+
+            if(!blueCaptured){
+                switchE = Switch_InE();
+                switchF = Switch_InF();
+                switchG = Switch_InG();
+                switchH = Switch_InH();
+
+                if(switchE) {
+                    if(blueSprite.direction != 2) {
+                        blueSprite.direction = 0;
+                    }
+                }
+                if(switchF) {
+                    if(blueSprite.direction != 3) {
+                        blueSprite.direction = 1;
+                    }
+                }
+                if(switchG) {
+                    if(blueSprite.direction != 0) {
+                        blueSprite.direction = 2;
+                    }
+                }
+                if(switchH) {
+                    if(blueSprite.direction != 1) {
+                        blueSprite.direction = 3;
+                    }
+                }
+
+                switch(blueSprite.direction) {
+                    case 0:
+                        if(blueSprite.characterY - 1 > 7) {
+                            blueSprite.characterY -= 1;
+                            updateBlueFlag = 1;
+                        }
+                        break;
+                    case 1:
+                        if(blueSprite.characterX + 1 < 121) {
+                            blueSprite.characterX += 1;
+                            updateBlueFlag = 1;
+                        }
+                        break;
+                    case 2:
+                        if(blueSprite.characterY + 1 < 160) {
+                            blueSprite.characterY += 1;
+                            updateBlueFlag = 1;
+                        }
+                        break;
+                    case 3:
+                        if(blueSprite.characterX - 1 > 0) {
+                            blueSprite.characterX -= 1;
+                            updateBlueFlag = 1;
+                        }
+                        break;
+                }
+
+                int8_t inBlueTerr = 0;
+                Point_t blueCharLoc = {blueSprite.characterX, blueSprite.characterY};
+                inBlueTerr = isInsideConvexHull(blueCapturedTerritory, blueCapIndex, blueCharLoc);
+
+                if(!inBlueTerr){
+                    bluePossibleCapture[bluePossCapIndex].x = blueSprite.characterX;
+                    bluePossibleCapture[bluePossCapIndex].y = blueSprite.characterY;
+                    Point_t blueCharLoc = {blueSprite.characterX, blueSprite.characterY};
+                    blueCapturedTerritory[blueCapIndex] = blueCharLoc;
+                    bluePossCapIndex++;
+                    blueLeftTerritory = 1;
+                    showBlueTrail = 1;
+
+                }
+                if(inBlueTerr == 1){
+                    if(blueLeftTerritory) {
+                        blueCaptured = 1;
+                        blueLeftTerritory = 0;
+                    }
+                    showBlueTrail = 0;
+                }
+            }
+
         }
         // 4) start sounds
 
@@ -352,16 +465,6 @@ int main2(void){ // main2
     //note: if you colors are weird, see different options for
     // ST7735_InitR(INITR_REDTAB); inside ST7735_InitPrintf()
   ST7735_FillScreen(ST7735_BLACK);
-  ST7735_DrawBitmap(22, 159, PlayerShip0, 18,8); // player ship bottom
-  ST7735_DrawBitmap(53, 151, Bunker0, 18,5);
-  ST7735_DrawBitmap(42, 159, PlayerShip1, 18,8); // player ship bottom
-  ST7735_DrawBitmap(62, 159, PlayerShip2, 18,8); // player ship bottom
-  ST7735_DrawBitmap(82, 159, PlayerShip3, 18,8); // player ship bottom
-  ST7735_DrawBitmap(0, 9, SmallEnemy10pointA, 16,10);
-  ST7735_DrawBitmap(20,9, SmallEnemy10pointB, 16,10);
-  ST7735_DrawBitmap(40, 9, SmallEnemy20pointA, 16,10);
-  ST7735_DrawBitmap(60, 9, SmallEnemy20pointB, 16,10);
-  ST7735_DrawBitmap(80, 9, SmallEnemy30pointA, 16,10);
 
   for(uint32_t t=500;t>0;t=t-5){
     SmallFont_OutVertical(t,104,6); // top left
@@ -456,9 +559,18 @@ int main(void){ // final main
   redCapturedTerritory[1].x = 30;
   redCapturedTerritory[1].y = 0;
   redCapturedTerritory[2].x = 30;
-  redCapturedTerritory[2].y = 30;
+  redCapturedTerritory[2].y = 160;
   redCapturedTerritory[3].x = 0;
-  redCapturedTerritory[3].y = 30;
+  redCapturedTerritory[3].y = 160;
+
+  blueCapturedTerritory[0].x = 90;
+  blueCapturedTerritory[0].y = 0;
+  blueCapturedTerritory[1].x = 120;
+  blueCapturedTerritory[1].y = 0;
+  blueCapturedTerritory[2].x = 90;
+  blueCapturedTerritory[2].y = 160;
+  blueCapturedTerritory[3].x = 120;
+  blueCapturedTerritory[3].y = 160;
 
   uint32_t ADC2input = ADC2in();
   sliderY = Convert2(ADC2input);
@@ -470,7 +582,7 @@ int main(void){ // final main
                 ST7735_DrawBitmap(7, 120, languageSelect, 40 , 40);
                 while(onIntroScreen){
                     ST7735_DrawBitmap(83, 22, crown, 18 , 8);
-                    for(uint32_t poop = 0;poop < 500000; poop++){
+                    for(uint32_t delay = 0; delay < 500000; delay++){
                     }
                     ADC2input = ADC2in();
                     sliderY = Convert2(ADC2input);
@@ -526,6 +638,37 @@ int main(void){ // final main
                 fillPolygon(redCapIndex, 0);
                 redCaptured = 0;
                 redPossCapIndex = 0;
+            }
+
+            if(updateBlueFlag) {
+                ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
+                if(showBlueTrail) {
+                    switch(blueSprite.direction) {
+                        case 0:
+                            ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY + 1, blueTrail, 8, 1);
+                            break;
+                        case 1:
+                            ST7735_DrawBitmap(blueSprite.characterX - 1, blueSprite.characterY, blueTrail, 1, 8);
+                            break;
+                        case 2:
+                            ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY - 8, blueTrail, 8, 1);
+                            break;
+                        case 3:
+                            ST7735_DrawBitmap(blueSprite.characterX + 8, blueSprite.characterY, blueTrail, 1, 8);
+                            break;
+                    }
+                }
+            }
+            if(blueCaptured) {
+                for(int i = 0; i <= bluePossCapIndex; i++) {
+                    ST7735_DrawBitmap(bluePossibleCapture[i].x, bluePossibleCapture[i].y, blueFill, 1, 8);
+                    ST7735_DrawBitmap(bluePossibleCapture[i].x, bluePossibleCapture[i].y, blueFill, 8, 1);
+                }
+                prevBlueCapIndex = blueCapIndex;
+                convexHull(bluePossibleCapture, bluePossCapIndex, 1);
+                fillPolygon(blueCapIndex, 1);
+                blueCaptured = 0;
+                bluePossCapIndex = 0;
             }
       }
     // wait for semaphore

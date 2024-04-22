@@ -8,10 +8,16 @@
 #include "../inc/LaunchPad.h"
 // LaunchPad.h defines all the indices into the PINCM table
 void Switch_Init(void){
+    // red switches
     IOMUX->SECCFG.PINCM[PB20INDEX] = 0x00040081;
     IOMUX->SECCFG.PINCM[PB16INDEX] = 0x00040081;
     IOMUX->SECCFG.PINCM[PB17INDEX] = 0x00040081;
     IOMUX->SECCFG.PINCM[PB19INDEX] = 0x00040081;
+
+    IOMUX->SECCFG.PINCM[PA15INDEX] = 0x00040081;
+    IOMUX->SECCFG.PINCM[PA17INDEX] = 0x00040081;
+    IOMUX->SECCFG.PINCM[PA18INDEX] = 0x00040081;
+    IOMUX->SECCFG.PINCM[PA24INDEX] = 0x00040081;
     // write this
   
 }
@@ -37,4 +43,24 @@ uint32_t Switch_InC(void){
 uint32_t Switch_InD(void){
     // write this
     return ((GPIOB->DIN31_0 & (1<<20)) >> 20);
+}
+
+uint32_t Switch_InH(void){
+    // write this
+    return ((GPIOA->DIN31_0 & (1<<15)) >> 15);
+}
+
+uint32_t Switch_InG(void){
+    // write this
+    return ((GPIOA->DIN31_0 & (1<<17)) >> 17);
+}
+
+uint32_t Switch_InE(void){
+    // write this
+    return ((GPIOA->DIN31_0 & (1<<18)) >> 18);
+}
+
+uint32_t Switch_InF(void){
+    // write this
+    return ((GPIOA->DIN31_0 & (1<<24)) >> 24);
 }
