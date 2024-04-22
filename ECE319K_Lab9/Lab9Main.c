@@ -298,6 +298,12 @@ void TIMG12_IRQHandler(void){
                         break;
                 }
 
+                for(int i = 0; i < redPossCapIndex; i++) {
+                    if(bluePossibleCapture[i].x == redSprite.characterX && bluePossibleCapture[i].y == redSprite.characterY) {
+                        redWin = 1;
+                    }
+                }
+
                 int8_t inRedTerr = 0;
                 Point_t redCharLoc = {redSprite.characterX, redSprite.characterY};
                 inRedTerr = isInsideConvexHull(redCapturedTerritory, redCapIndex, redCharLoc);
@@ -373,6 +379,12 @@ void TIMG12_IRQHandler(void){
                             updateBlueFlag = 1;
                         }
                         break;
+                }
+
+                for(int i = 0; i < redPossCapIndex; i++) {
+                    if(redPossibleCapture[i].x == blueSprite.characterX && redPossibleCapture[i].y == blueSprite.characterY) {
+                        blueWin = 1;
+                    }
                 }
 
                 int8_t inBlueTerr = 0;
@@ -576,11 +588,11 @@ int main(void){ // final main
 
   blueCapturedTerritory[0].x = 98;
   blueCapturedTerritory[0].y = 0;
-  blueCapturedTerritory[1].x = 120;
+  blueCapturedTerritory[1].x = 128;
   blueCapturedTerritory[1].y = 0;
-  blueCapturedTerritory[2].x = 98;
+  blueCapturedTerritory[2].x = 128;
   blueCapturedTerritory[2].y = 160;
-  blueCapturedTerritory[3].x = 120;
+  blueCapturedTerritory[3].x = 98;
   blueCapturedTerritory[3].y = 160;
 
   uint32_t ADC2input = ADC2in();
@@ -593,10 +605,7 @@ int main(void){ // final main
 //      }
 //      switchA = Switch_InA();
 //  }
-
-
-  while(1){
-
+while(1){
       if(redWin && isEnglish) {
           if(playerWon == 0) {
               ST7735_FillScreen(ST7735_BLACK);
@@ -614,39 +623,56 @@ int main(void){ // final main
           ST7735_DrawBitmap(0, 105, blueWins, 128, 50);
       }
 
-          if(onIntroScreen) {
-                ST7735_DrawBitmap(0, 160, Startbackground, 128 , 160);
-                ST7735_DrawBitmap(7, 120, languageSelect, 40 , 40);
-                while(onIntroScreen){
-                    ST7735_DrawBitmap(83, 22, crown, 18 , 8);
-                    for(uint32_t delay = 0; delay < 500000; delay++){
-                    }
-                    ADC2input = ADC2in();
-                    sliderY = Convert2(ADC2input);
-                    if(sliderY == 1){
-                        ST7735_DrawBitmap(0, 160, startButton, 128 , 35);
-                        ST7735_DrawBitmap(0, 114, yellowselector, 5 , 20);
-                        isEnglish = 1;
-                    }
+      if(redWin && !isEnglish) {
+          if(playerWon == 0) {
+              ST7735_FillScreen(ST7735_BLACK);
+              playerWon = 1;
+          }
+          ST7735_DrawBitmap(0, 105, redWinPigLatin, 128, 50);
+        //break;
+      }
+//
+      if(blueWin && !isEnglish) {
+          if(playerWon == 0) {
+              ST7735_FillScreen(ST7735_BLACK);
+              playerWon = 1;
+          }
+          ST7735_DrawBitmap(0, 105, blueWinPigLatin, 128, 50);
+      }
 
-                    if(sliderY == 0){
-                        ST7735_DrawBitmap(0, 114, lightBlue, 5 , 20);
-                        ST7735_DrawBitmap(0, 160, pigLatinStart, 128 , 35);
-                        ST7735_DrawBitmap(0, 124, yellowselector, 5 , 20);
-                        isEnglish = 0;
-                    }
-
-                    switchA = Switch_InA();
-                    if(switchA == 1) {
-                        onIntroScreen = 0;
-                        ST7735_FillScreen(ST7735_BLACK);
-                        ST7735_DrawBitmap(98, 160, blueStart, 30, 160);
-                        ST7735_DrawBitmap(0, 160, redStart, 30, 160);
-                        redSprite.direction = 2;
-                        blueSprite.direction = 2;
-                    }
+      if(onIntroScreen) {
+            ST7735_DrawBitmap(0, 160, Startbackground, 128 , 160);
+            ST7735_DrawBitmap(7, 120, languageSelect, 40 , 40);
+            while(onIntroScreen){
+                ST7735_DrawBitmap(83, 22, crown, 18 , 8);
+                for(uint32_t delay = 0; delay < 500000; delay++){
                 }
-              }
+                ADC2input = ADC2in();
+                sliderY = Convert2(ADC2input);
+                if(sliderY == 1){
+                    ST7735_DrawBitmap(0, 160, startButton, 128 , 35);
+                    ST7735_DrawBitmap(0, 114, yellowselector, 5 , 20);
+                    isEnglish = 1;
+                }
+
+                if(sliderY == 0){
+                    ST7735_DrawBitmap(0, 114, lightBlue, 5 , 20);
+                    ST7735_DrawBitmap(0, 160, pigLatinStart, 128 , 35);
+                    ST7735_DrawBitmap(0, 124, yellowselector, 5 , 20);
+                    isEnglish = 0;
+                }
+
+                 switchA = Switch_InA();
+                 if(switchA == 1) {
+                    onIntroScreen = 0;
+                    ST7735_FillScreen(ST7735_BLACK);
+                    ST7735_DrawBitmap(98, 160, blueStart, 30, 160);
+                    ST7735_DrawBitmap(0, 160, redStart, 30, 160);
+                    redSprite.direction = 2;
+                    blueSprite.direction = 2;
+                }
+            }
+      }
       if(!onIntroScreen && !redWin && !blueWin) {
           if(updateRedFlag) {
                 ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
