@@ -227,10 +227,10 @@ void fillPolygon(int n, int8_t color) {
                     }
                 }
             }
-            break;
             if(bluePixelCount > 15000) {
                 blueWin = 1;
             }
+            break;
     }
 }
 
