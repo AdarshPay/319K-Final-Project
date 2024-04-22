@@ -49,6 +49,7 @@ int8_t redCaptured = 0;
 int8_t blueCaptured = 0;
 int8_t onIntroScreen = 1;
 int8_t isEnglish = 1;
+int8_t playerWon = 1;
 
 uint32_t redPixelCount = 4800;
 uint32_t bluePixelCount = 4800;
@@ -198,9 +199,15 @@ void fillPolygon(int n, int8_t color) {
                         ST7735_DrawBitmap(i, j, redFill, 1, 8);
                         ST7735_DrawBitmap(i, j, redFill, 8, 1);
                         redPixelCount += 64;
+                        if(isInsideConvexHull(blueCapturedTerritory, blueCapIndex, pixelLoc)) {
+                            bluePixelCount -= 64;
+                        }
 //                        ST7735_DrawPixel(i, j, 0x20FD);
                     }
                 }
+            }
+            if(redPixelCount > 15000) {
+                redWin = 1;
             }
             break;
         case 1:
@@ -213,14 +220,17 @@ void fillPolygon(int n, int8_t color) {
                         ST7735_DrawBitmap(i, j, blueFill, 1, 8);
                         ST7735_DrawBitmap(i, j, blueFill, 8, 1);
                         bluePixelCount += 64;
+                        if(isInsideConvexHull(redCapturedTerritory, redCapIndex, pixelLoc)) {
+                            redPixelCount -= 64;
+                        }
 //                        ST7735_DrawPixel(i, j, 0x20FD);
                     }
                 }
             }
             break;
-//            if(redPixelCount > 35000) {
-//                redWin = 1;
-//            }
+            if(bluePixelCount > 15000) {
+                blueWin = 1;
+            }
     }
 }
 
@@ -550,7 +560,8 @@ int main(void){ // final main
   // initialize all data structures
   __enable_irq();
 
-  ST7735_DrawBitmap(0, 160, paperiomap, 128 , 160);
+  ST7735_DrawBitmap(98, 160, blueStart, 30 , 160);
+  ST7735_DrawBitmap(0, 160, redStart, 30 , 160);
   ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
   ST7735_DrawBitmap(blueSprite.characterX, blueSprite.characterY, blueSprite.img, 8, 8);
 
@@ -563,11 +574,11 @@ int main(void){ // final main
   redCapturedTerritory[3].x = 0;
   redCapturedTerritory[3].y = 160;
 
-  blueCapturedTerritory[0].x = 90;
+  blueCapturedTerritory[0].x = 98;
   blueCapturedTerritory[0].y = 0;
   blueCapturedTerritory[1].x = 120;
   blueCapturedTerritory[1].y = 0;
-  blueCapturedTerritory[2].x = 90;
+  blueCapturedTerritory[2].x = 98;
   blueCapturedTerritory[2].y = 160;
   blueCapturedTerritory[3].x = 120;
   blueCapturedTerritory[3].y = 160;
@@ -576,7 +587,33 @@ int main(void){ // final main
   sliderY = Convert2(ADC2input);
   uint32_t switchA = Switch_InA();
 
+//  while(1) {
+//      if(switchA == 0) {
+//          Sound_Shoot();
+//      }
+//      switchA = Switch_InA();
+//  }
+
+
   while(1){
+
+      if(redWin && isEnglish) {
+          if(playerWon == 0) {
+              ST7735_FillScreen(ST7735_BLACK);
+              playerWon = 1;
+          }
+          ST7735_DrawBitmap(0, 105, redWins, 128, 50);
+          //break;
+      }
+//
+      if(blueWin && isEnglish) {
+          if(playerWon == 0) {
+              ST7735_FillScreen(ST7735_BLACK);
+              playerWon = 1;
+          }
+          ST7735_DrawBitmap(0, 105, blueWins, 128, 50);
+      }
+
           if(onIntroScreen) {
                 ST7735_DrawBitmap(0, 160, Startbackground, 128 , 160);
                 ST7735_DrawBitmap(7, 120, languageSelect, 40 , 40);
@@ -602,13 +639,15 @@ int main(void){ // final main
                     switchA = Switch_InA();
                     if(switchA == 1) {
                         onIntroScreen = 0;
-                        ST7735_DrawBitmap(0, 160, paperiomap, 128 , 160);
+                        ST7735_FillScreen(ST7735_BLACK);
+                        ST7735_DrawBitmap(98, 160, blueStart, 30, 160);
+                        ST7735_DrawBitmap(0, 160, redStart, 30, 160);
                         redSprite.direction = 2;
                         blueSprite.direction = 2;
                     }
                 }
               }
-      if(!onIntroScreen) {
+      if(!onIntroScreen && !redWin && !blueWin) {
           if(updateRedFlag) {
                 ST7735_DrawBitmap(redSprite.characterX, redSprite.characterY, redSprite.img, 8, 8);
                 if(showRedTrail) {
