@@ -50,6 +50,8 @@ int8_t blueCaptured = 0;
 int8_t onIntroScreen = 1;
 int8_t isEnglish = 1;
 int8_t playerWon = 1;
+int8_t playedEndSound = 0;
+int8_t playedStartSound = 0;
 
 uint32_t redPixelCount = 4800;
 uint32_t bluePixelCount = 4800;
@@ -99,8 +101,8 @@ sprite_t redSprite = {17, 17, redChar, 0xfcaf, 2, 0, 0, 0, 30, 30, 30, 30, 0};
 Point_t redPossibleCapture[640];
 Point_t bluePossibleCapture[640];
 
-Point_t redCapturedTerritory[960];
-Point_t blueCapturedTerritory[960];
+Point_t redCapturedTerritory[480];
+Point_t blueCapturedTerritory[480];
 
 int16_t redCapIndex = 4;
 int16_t blueCapIndex = 4;
@@ -206,7 +208,7 @@ void fillPolygon(int n, int8_t color) {
                     }
                 }
             }
-            if(redPixelCount > 15000) {
+            if(redPixelCount > 20000) {
                 redWin = 1;
             }
             break;
@@ -227,7 +229,7 @@ void fillPolygon(int n, int8_t color) {
                     }
                 }
             }
-            if(bluePixelCount > 15000) {
+            if(bluePixelCount > 20000) {
                 blueWin = 1;
             }
             break;
@@ -298,7 +300,7 @@ void TIMG12_IRQHandler(void){
                         break;
                 }
 
-                for(int i = 0; i < redPossCapIndex; i++) {
+                for(int i = 0; i < bluePossCapIndex; i++) {
                     if(bluePossibleCapture[i].x == redSprite.characterX && bluePossibleCapture[i].y == redSprite.characterY) {
                         redWin = 1;
                     }
@@ -599,46 +601,90 @@ int main(void){ // final main
   sliderY = Convert2(ADC2input);
   uint32_t switchA = Switch_InA();
 
-//  while(1) {
-//      if(switchA == 0) {
-//          Sound_Shoot();
-//      }
-//      switchA = Switch_InA();
-//  }
+//Sound_Shoot();
 while(1){
       if(redWin && isEnglish) {
           if(playerWon == 0) {
+
               ST7735_FillScreen(ST7735_BLACK);
+
               playerWon = 1;
           }
-          ST7735_DrawBitmap(0, 105, redWins, 128, 50);
+          if(playedEndSound == 0) {
+              Sound_Killed();
+          }
+
+          ST7735_SetCursor(0, 0);
+          printf("RED SCORE: %d    ", redPixelCount);
+          ST7735_DrawBitmap(0, 105, redWins, 128, 25);
+          if(playedEndSound == 0) {
+              for(int i = 0;  i < 5000000; i++) {
+                  playedEndSound = 1;
+              }
+          }
           //break;
       }
 //
       if(blueWin && isEnglish) {
           if(playerWon == 0) {
+
               ST7735_FillScreen(ST7735_BLACK);
+
               playerWon = 1;
           }
-          ST7735_DrawBitmap(0, 105, blueWins, 128, 50);
+          if(playedEndSound == 0) {
+                        Sound_Killed();
+                    }
+          ST7735_SetCursor(0, 0);
+          printf("BLUE SCORE: %d   ", bluePixelCount);
+          ST7735_DrawBitmap(0, 105, blueWins, 128, 25);
+          if(playedEndSound == 0) {
+                        for(int i = 0;  i < 5000000; i++) {
+                            playedEndSound = 1;
+                        }
+                    }
       }
 
       if(redWin && !isEnglish) {
-          if(playerWon == 0) {
-              ST7735_FillScreen(ST7735_BLACK);
-              playerWon = 1;
-          }
-          ST7735_DrawBitmap(0, 105, redWinPigLatin, 128, 50);
+        if(playerWon == 0) {
+
+            ST7735_FillScreen(ST7735_BLACK);
+
+            playerWon = 1;
+        }
+        if(playedEndSound == 0) {
+                      Sound_Killed();
+                  }
+        ST7735_SetCursor(0, 0);
+        printf("EDRAY SCORE: %d", redPixelCount);
+        ST7735_DrawBitmap(0, 105, redWinPigLatin, 128, 25);
+        if(playedEndSound == 0) {
+                      for(int i = 0;  i < 5000000; i++) {
+                          playedEndSound = 1;
+                      }
+                  }
         //break;
-      }
-//
-      if(blueWin && !isEnglish) {
-          if(playerWon == 0) {
-              ST7735_FillScreen(ST7735_BLACK);
-              playerWon = 1;
+    }
+    //
+    if(blueWin && !isEnglish) {
+        if(playerWon == 0) {
+
+            ST7735_FillScreen(ST7735_BLACK);
+
+            playerWon = 1;
+        }
+        if(playedEndSound == 0) {
+                      Sound_Killed();
+                  }
+        ST7735_SetCursor(0, 0);
+        printf("UEBLAY SCORE: %d", bluePixelCount);
+        ST7735_DrawBitmap(0, 105, blueWinPigLatin, 128, 25);
+        if(playedEndSound == 0) {
+              for(int i = 0;  i < 5000000; i++) {
+                  playedEndSound = 1;
+              }
           }
-          ST7735_DrawBitmap(0, 105, blueWinPigLatin, 128, 50);
-      }
+    }
 
       if(onIntroScreen) {
             ST7735_DrawBitmap(0, 160, Startbackground, 128 , 160);
@@ -664,12 +710,19 @@ while(1){
 
                  switchA = Switch_InA();
                  if(switchA == 1) {
+
+                    if(playedStartSound == 0) {
+                        Sound_Shoot();
+                    }
+                    for(int i = 0;  i < 5000000; i++) {
+                                  }
                     onIntroScreen = 0;
                     ST7735_FillScreen(ST7735_BLACK);
                     ST7735_DrawBitmap(98, 160, blueStart, 30, 160);
                     ST7735_DrawBitmap(0, 160, redStart, 30, 160);
                     redSprite.direction = 2;
                     blueSprite.direction = 2;
+
                 }
             }
       }
