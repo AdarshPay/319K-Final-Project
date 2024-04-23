@@ -136,7 +136,7 @@ void Sound_Shoot(void){
 
     GPIOB->DOUTSET31_0 = (1<<27);
 
-    Sound_Start(penisbutt, 9728);
+    Sound_Start(penisbutt, 2300);
 
     GPIOB->DOUTCLR31_0 = (1<<27);
 
@@ -146,7 +146,7 @@ void Sound_Killed(void){
 
 // write this
 
-  Sound_Start(buttpenis, 5118);
+  Sound_Start(buttpenis, 2600);
 
 }
 

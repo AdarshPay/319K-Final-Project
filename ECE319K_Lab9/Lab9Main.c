@@ -714,8 +714,8 @@ while(1){
                     if(playedStartSound == 0) {
                         Sound_Shoot();
                     }
-                    for(int i = 0;  i < 5000000; i++) {
-                                  }
+//                    for(int i = 0;  i < 1000000; i++) {
+//                                  }
                     onIntroScreen = 0;
                     ST7735_FillScreen(ST7735_BLACK);
                     ST7735_DrawBitmap(98, 160, blueStart, 30, 160);
